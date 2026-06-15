@@ -506,8 +506,6 @@ func (d *hmsdbPg) GetComponentByNID(nid string) (*base.Component, error) {
 	return comp, err
 }
 
-// Insert HMS Component into database, updating it if it exists.
-// Returns the number of affected rows. < 0 means RowsAffected() is not supported.
 func (d *hmsdbPg) InsertComponent(c *base.Component) (int64, error) {
 	t, err := d.Begin()
 	if err != nil {
@@ -5048,4 +5046,102 @@ func (d *hmsdbPg) DeleteJob(jobId string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func (d *hmsdbPg) GetComponentByIDWithTransport(id string) (*sm.ComponentWithTransport, error) {
+	id = xnametypes.NormalizeHMSCompID(id)
+	if id == "" {
+		return nil, ErrHMSDSArgBadID
+	}
+	query := sq.Select(compColsDefault...).
+		From(compTable).
+		Where(sq.Eq{compIdCol: id}).
+		PlaceholderFormat(sq.Dollar)
+	rows, err := query.RunWith(d.sc).QueryContext(d.ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return d.scanComponentWithTransport(rows)
+	}
+	return nil, nil
+}
+
+func (d *hmsdbPg) attachBootTransport(comps []*base.Component) ([]*sm.ComponentWithTransport, error) {
+	if len(comps) == 0 {
+		return []*sm.ComponentWithTransport{}, nil
+	}
+	ids := make([]string, 0, len(comps))
+	for _, c := range comps {
+		ids = append(ids, c.ID)
+	}
+	query := sq.Select(compIdCol, compBootTransportCol).
+		From(compTable).
+		Where(sq.Eq{compIdCol: ids}).
+		PlaceholderFormat(sq.Dollar)
+	rows, err := query.RunWith(d.sc).QueryContext(d.ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	transportMap := make(map[string]string)
+	for rows.Next() {
+		var id string
+		var transport sql.NullString
+		if err := rows.Scan(&id, &transport); err != nil {
+			return nil, err
+		}
+		if transport.Valid {
+			transportMap[id] = transport.String
+		}
+	}
+	result := make([]*sm.ComponentWithTransport, 0, len(comps))
+	for _, c := range comps {
+		cwt := &sm.ComponentWithTransport{Component: c}
+		if t, ok := transportMap[c.ID]; ok {
+			cwt.BootTransport = t
+		}
+		result = append(result, cwt)
+	}
+	return result, nil
+}
+
+func (d *hmsdbPg) GetComponentsFilterWithTransport(f *ComponentFilter, fieldFltr FieldFilter) ([]*sm.ComponentWithTransport, error) {
+	comps, err := d.GetComponentsFilter(f, fieldFltr)
+	if err != nil {
+		return nil, err
+	}
+	return d.attachBootTransport(comps)
+}
+
+func (d *hmsdbPg) GetComponentsQueryWithTransport(f *ComponentFilter, fieldfltr FieldFilter, ids []string) ([]*sm.ComponentWithTransport, error) {
+	comps, err := d.GetComponentsQuery(f, fieldfltr, ids)
+	if err != nil {
+		return nil, err
+	}
+	return d.attachBootTransport(comps)
+}
+
+func (d *hmsdbPg) UpdateCompBootTransport(id string, transport *string) error {
+	id = xnametypes.NormalizeHMSCompID(id)
+	if id == "" {
+		return ErrHMSDSArgBadID
+	}
+	query := sq.Update(compTable).
+		Set(compBootTransportCol, transport).
+		Where(sq.Eq{compIdCol: id}).
+		PlaceholderFormat(sq.Dollar)
+	res, err := query.RunWith(d.sc).ExecContext(d.ctx)
+	if err != nil {
+		return err
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if num == 0 {
+		return ErrHMSDSNoComponent
+	}
+	return nil
 }

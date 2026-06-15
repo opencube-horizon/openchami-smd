@@ -354,6 +354,12 @@ func (s *SmD) generateProtectedRoutes() Routes {
 			s.doCompNIDPatch,
 		},
 		Route{
+			"doCompBootTransportPatchV2",
+			"PATCH",
+			s.componentsBaseV2 + "/{xname}/BootTransport",
+			s.doCompBootTransportPatch,
+		},
+		Route{
 			"doComponentByNIDGetV2",
 			strings.ToUpper("Get"),
 			s.componentsBaseV2 + "/ByNID/{nid}",

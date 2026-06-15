@@ -751,7 +751,7 @@ func (t *hmsdbPgTx) InsertComponentsTx(comps []*base.Component) ([]string, error
 
 	// Generate query
 	query := sq.Insert(compTable).
-		Columns(compColsDefault...)
+		Columns(compColsInsert...)
 
 	for _, c := range comps {
 		// Normalize key
@@ -794,7 +794,8 @@ func (t *hmsdbPgTx) InsertComponentsTx(comps []*base.Component) ([]string, error
 			c.Arch,
 			c.Class,
 			c.ReservationDisabled,
-			c.Locked)
+			c.Locked,
+			nil)
 	}
 	query = query.Suffix("ON CONFLICT(" + compIdCol + ") DO UPDATE SET " +
 		compStateCol + " = EXCLUDED." + compStateCol + ", " +

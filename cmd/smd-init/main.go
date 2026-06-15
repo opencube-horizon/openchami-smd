@@ -39,7 +39,7 @@ import (
 
 const APP_VERSION = "1"
 const SCHEMA_VERSION = 21
-const SCHEMA_STEPS = 23
+const SCHEMA_STEPS = 24
 const DELETE_DUPLICATE_DETECTED_EVENTS_STEP = 23
 
 var dbName string

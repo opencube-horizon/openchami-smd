@@ -412,7 +412,7 @@ func (s *SmD) doComponentGet(w http.ResponseWriter, r *http.Request) {
 
 	xname := xnametypes.NormalizeHMSCompID(chi.URLParam(r, "xname"))
 
-	cmp, err := s.db.GetComponentByID(xname)
+	cmp, err := s.db.GetComponentByIDWithTransport(xname)
 	if err != nil {
 		s.LogAlways("doComponentGet(): Lookup failure: (%s) %s", xname, err)
 		sendJsonDBError(w, "", "", err)
@@ -422,8 +422,7 @@ func (s *SmD) doComponentGet(w http.ResponseWriter, r *http.Request) {
 		sendJsonError(w, http.StatusNotFound, "no such xname.")
 		return
 	}
-	// Over all summary error code needs to be computed...
-	sendJsonCompRsp(w, cmp)
+	sendJsonCompWithTransportRsp(w, cmp)
 }
 
 // Delete single ComponentEndpoint, by its xname ID.
@@ -456,7 +455,6 @@ func (s *SmD) doComponentDelete(w http.ResponseWriter, r *http.Request) {
 func (s *SmD) doComponentsGet(w http.ResponseWriter, r *http.Request) {
 	defer base.DrainAndCloseRequestBody(r)
 
-	comps := new(base.ComponentArray)
 	var err error
 
 	// Parse arguments
@@ -489,13 +487,13 @@ func (s *SmD) doComponentsGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fieldFltr := getFieldFilterForm(fieldFltrIn)
-	comps.Components, err = s.db.GetComponentsFilter(compFilter, fieldFltr)
+	comps, err := s.db.GetComponentsFilterWithTransport(compFilter, fieldFltr)
 	if err != nil {
 		s.LogAlways("doComponentsGet(): Lookup failure: %s", err)
 		sendJsonDBError(w, "bad query param: ", "", err)
 		return
 	}
-	sendJsonCompArrayRsp(w, comps)
+	sendJsonCompArrayWithTransportRsp(w, comps)
 }
 
 // CREATE/Update components. If the component already exists it will not be
@@ -624,7 +622,6 @@ func (s *SmD) doComponentsPost(w http.ResponseWriter, r *http.Request) {
 func (s *SmD) doComponentsQueryPost(w http.ResponseWriter, r *http.Request) {
 	defer base.DrainAndCloseRequestBody(r)
 
-	comps := new(base.ComponentArray)
 	var err error
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -657,20 +654,19 @@ func (s *SmD) doComponentsQueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fieldFltr := getFieldFilter(fieldFltrIn)
-	comps.Components, err = s.db.GetComponentsQuery(compFilter, fieldFltr, compQuery.ComponentIDs)
+	comps, err := s.db.GetComponentsQueryWithTransport(compFilter, fieldFltr, compQuery.ComponentIDs)
 	if err != nil {
 		s.LogAlways("doComponentsQueryPost(): Lookup failure: %s", err)
 		sendJsonDBError(w, "bad query param: ", "", err)
 		return
 	}
-	sendJsonCompArrayRsp(w, comps)
+	sendJsonCompArrayWithTransportRsp(w, comps)
 }
 
 // Get all HMS Components under a single parent component as named array
 func (s *SmD) doComponentsQueryGet(w http.ResponseWriter, r *http.Request) {
 	defer base.DrainAndCloseRequestBody(r)
 
-	comps := new(base.ComponentArray)
 	ids := make([]string, 0, 1)
 	var err error
 
@@ -708,13 +704,13 @@ func (s *SmD) doComponentsQueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	fieldFltr := getFieldFilterForm(fieldFltrIn)
 	ids = append(ids, xname)
-	comps.Components, err = s.db.GetComponentsQuery(compFilter, fieldFltr, ids)
+	comps, err := s.db.GetComponentsQueryWithTransport(compFilter, fieldFltr, ids)
 	if err != nil {
 		s.LogAlways("doComponentsQueryGet(): Lookup failure: %s", err)
 		sendJsonDBError(w, "bad query param: ", "", err)
 		return
 	}
-	sendJsonCompArrayRsp(w, comps)
+	sendJsonCompArrayWithTransportRsp(w, comps)
 }
 
 // Delete entire collection of ComponentEndpoints, undoing discovery.
@@ -6284,4 +6280,44 @@ func (s *SmD) doPowerMapsDeleteAll(w http.ResponseWriter, r *http.Request) {
 	}
 	numStr := strconv.FormatInt(numDeleted, 10)
 	sendJsonError(w, http.StatusOK, "deleted "+numStr+" entries")
+}
+
+func (s *SmD) doCompBootTransportPatch(w http.ResponseWriter, r *http.Request) {
+	defer base.DrainAndCloseRequestBody(r)
+
+	xname := xnametypes.NormalizeHMSCompID(chi.URLParam(r, "xname"))
+	if !xnametypes.IsHMSCompIDValid(xname) {
+		sendJsonError(w, http.StatusBadRequest, "invalid xname")
+		return
+	}
+
+	var payload struct {
+		BootTransport string `json:"BootTransport"`
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		sendJsonError(w, http.StatusInternalServerError, "error reading body")
+		return
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		sendJsonError(w, http.StatusBadRequest, "error decoding JSON: "+err.Error())
+		return
+	}
+
+	normalized, err := sm.VerifyBootTransport(payload.BootTransport)
+	if err != nil {
+		sendJsonError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var transport *string
+	if normalized != "" {
+		transport = &normalized
+	}
+
+	if err := s.db.UpdateCompBootTransport(xname, transport); err != nil {
+		sendJsonDBError(w, "operation 'PATCH BootTransport' failed: ", "", err)
+		return
+	}
+	sendJsonError(w, http.StatusOK, "updated")
 }

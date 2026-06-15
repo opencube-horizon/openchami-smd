@@ -126,6 +126,14 @@ func sendJsonCompArrayRsp(w http.ResponseWriter, comps *base.ComponentArray) {
 	sendJsonObject(w, http.StatusOK, comps)
 }
 
+func sendJsonCompWithTransportRsp(w http.ResponseWriter, comp *sm.ComponentWithTransport) {
+	sendJsonObject(w, http.StatusOK, comp)
+}
+
+func sendJsonCompArrayWithTransportRsp(w http.ResponseWriter, comps []*sm.ComponentWithTransport) {
+	sendJsonObject(w, http.StatusOK, &sm.ComponentArrayWithTransport{Components: comps})
+}
+
 func sendJsonNodeMapRsp(w http.ResponseWriter, m *sm.NodeMap) {
 	sendJsonObject(w, http.StatusOK, m)
 }

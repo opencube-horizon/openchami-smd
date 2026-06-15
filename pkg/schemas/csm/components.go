@@ -23,6 +23,7 @@ type Component struct {
 	NID                 int              `json:"NID,omitempty" db:"nid"`
 	ReservationDisabled bool             `json:"ReservationDisabled,omitempty" db:"reservation_disabled"`
 	Locked              bool             `json:"Locked,omitempty" db:"locked"`
+	BootTransport       string           `json:"BootTransport,omitempty" db:"boot_transport"`
 }
 
 type ComponentType string

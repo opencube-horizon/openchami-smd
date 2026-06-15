@@ -72,6 +72,7 @@ const (
 	compClassCol       = `class`
 	compResDisabledCol = `reservation_disabled`
 	compLockedCol      = `locked`
+	compBootTransportCol = `boot_transport`
 )
 
 var compColsNamesAll = []string{
@@ -90,6 +91,7 @@ var compColsNamesAll = []string{
 	compClassCol,
 	compResDisabledCol,
 	compLockedCol,
+	compBootTransportCol,
 }
 
 // With added group fields..
@@ -119,7 +121,10 @@ var compColsDefault = []string{
 	compClassCol,
 	compResDisabledCol,
 	compLockedCol,
+	compBootTransportCol,
 }
+
+var compColsInsert = compColsDefault
 
 // FLTR_STATEONLY
 var compColsStateOnly = []string{

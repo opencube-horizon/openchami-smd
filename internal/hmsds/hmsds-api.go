@@ -277,6 +277,11 @@ type HMSDB interface {
 	// Also returns number of deleted rows, if error is nil.
 	DeleteComponentsAll() (int64, error)
 
+	GetComponentByIDWithTransport(id string) (*sm.ComponentWithTransport, error)
+	GetComponentsFilterWithTransport(f *ComponentFilter, fieldFltr FieldFilter) ([]*sm.ComponentWithTransport, error)
+	GetComponentsQueryWithTransport(f *ComponentFilter, fieldfltr FieldFilter, ids []string) ([]*sm.ComponentWithTransport, error)
+	UpdateCompBootTransport(id string, transport *string) error
+
 	//                                                                    //
 	//              Node to Default NID, role, etc. mapping               //
 	//                                                                    //

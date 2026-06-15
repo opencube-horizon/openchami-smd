@@ -24,6 +24,8 @@ package sm
 
 import (
 	"fmt"
+	"strings"
+
 	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 )
@@ -244,6 +246,31 @@ func NewCompPut(comp base.Component, force bool) (*ComponentPut, error) {
 	return cp, nil
 }
 
+var ValidBootTransports = map[string]bool{
+	"http": true,
+	"tftp": true,
+}
+
+func VerifyBootTransport(transport string) (string, error) {
+	t := strings.ToLower(strings.TrimSpace(transport))
+	if t == "" {
+		return "", nil
+	}
+	if !ValidBootTransports[t] {
+		return "", fmt.Errorf("invalid boot transport %q, must be one of: http, tftp", transport)
+	}
+	return t, nil
+}
+
+type ComponentWithTransport struct {
+	*base.Component
+	BootTransport string `json:"BootTransport,omitempty"`
+}
+
+type ComponentArrayWithTransport struct {
+	Components []*ComponentWithTransport `json:"Components"`
+}
+
 func (cp *ComponentPut) VerifyNormalize() error {
 	c := &cp.Component
 	normID := xnametypes.VerifyNormalizeCompID(c.ID)
@@ -315,3 +342,4 @@ func (cp *ComponentPut) VerifyNormalize() error {
 	}
 	return nil
 }
+

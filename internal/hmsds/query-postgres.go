@@ -389,7 +389,8 @@ func (d *hmsdbPg) scanComponent(rows *sql.Rows, fltr FieldFilter) (*base.Compone
 			&c.Arch,
 			&c.Class,
 			&c.ReservationDisabled,
-			&c.Locked)
+			&c.Locked,
+			new(sql.NullString))
 	default:
 		//Not going to let an invalid filter choice ruin our day. Just get all rows.
 		c.Enabled = new(bool)
@@ -408,7 +409,8 @@ func (d *hmsdbPg) scanComponent(rows *sql.Rows, fltr FieldFilter) (*base.Compone
 			&c.Arch,
 			&c.Class,
 			&c.ReservationDisabled,
-			&c.Locked)
+			&c.Locked,
+			new(sql.NullString))
 	}
 	if err != nil {
 		return nil, err
@@ -419,6 +421,30 @@ func (d *hmsdbPg) scanComponent(rows *sql.Rows, fltr FieldFilter) (*base.Compone
 		c.NID = json.Number(strconv.FormatInt(rawNID, 10))
 	}
 	return c, nil
+}
+
+func (d *hmsdbPg) scanComponentWithTransport(rows *sql.Rows) (*sm.ComponentWithTransport, error) {
+	var rawNID int64
+	var bootTransport sql.NullString
+	c := new(base.Component)
+	c.Enabled = new(bool)
+	err := rows.Scan(
+		&c.ID, &c.Type, &c.State, &c.Flag,
+		c.Enabled, &c.SwStatus, &c.Role, &c.SubRole,
+		&rawNID, &c.Subtype, &c.NetType, &c.Arch,
+		&c.Class, &c.ReservationDisabled, &c.Locked,
+		&bootTransport)
+	if err != nil {
+		return nil, err
+	}
+	if rawNID >= 0 {
+		c.NID = json.Number(strconv.FormatInt(rawNID, 10))
+	}
+	cwt := &sm.ComponentWithTransport{Component: c}
+	if bootTransport.Valid {
+		cwt.BootTransport = bootTransport.String
+	}
+	return cwt, nil
 }
 
 // This is used for all routines that read NodeMap struct as rows and
